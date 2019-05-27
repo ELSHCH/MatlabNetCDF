@@ -1,26 +1,15 @@
-% DATA BALTIC
-% SEA------------------------------------------------------------
+function [lon,lat,depth]=readnetcdfBathy(filename,intU)
+%---------------------------------------------------------------------------------------------------
+% This function reads depth data from EDMONET bathymetry file 
+% (http://www.emodnet-bathymetry.eu/data-products)
+% and returns coordinates and bathymetry values
 %
-%nc=netcdf.open('dataset-bal-analysis-forecast-phy-dailymeans_1552753191465.nc');
-%finfo = ncinfo('dataset-bal-analysis-forecast-phy-dailymeans_1552753191465.nc');
-%disp(finfo);
-function [lon,lat,depth]=readnetcdfBathy(filename)
-  nc1=netcdf.open(filename); % 02-Jan-2017 
- 
-%
-%file1=fopen('Bathy_BlackSea.txt','w');
-% DATA MEDITERRANEAN SEA------------------------------------------------------------
-%  clear all
-%  nc=netcdf.open('sv04-med-ingv-cur-an-fc-d_1551702184159.nc');
-  finfo = ncinfo(filename);
-%  disp(finfo);
-%MetO-NWS-PHY-dm-CUR_1552904168532
-%------------------------------------------------------------------------------
-finfo.Variables(1).Name;
+% filename - the name of netcdf bathymetry file
+% intU - user-defined frequency for data sampling 
+%---------------------------------------------------------------------------------------------------
+nc1=netcdf.open(filename);
+finfo = ncinfo(filename);
 
-finfo.Variables(2).Size;
-
-%-------------------------------------------------------------------------------
 ID_lat1=netcdf.inqVarID(nc1,'LINES');
 ID_lon1=netcdf.inqVarID(nc1,'COLUMNS');
 ID_depth1=netcdf.inqVarID(nc1,'DEPTH');
@@ -29,25 +18,41 @@ ID_depth1=netcdf.inqVarID(nc1,'DEPTH');
 lat1= netcdf.getVar(nc1,ID_lat1);
 lon1= netcdf.getVar(nc1,ID_lon1);
 depth1= netcdf.getVar(nc1,ID_depth1);
+attname = netcdf.inqAttName(nc1,ID_depth1,18); % get attribute ext_missing_value
 
-k=0;
-for i=1:20:length(lon1)
-    k=k+1;
-    lon(k)=lon1(i);
-end;
-k=0;
-for i=1:20:length(lat1)
-    k=k+1;
-    lat(k)=lat1(i);
-end;
+% Get value of attribute.
+missval = netcdf.getAtt(nc1,ID_depth1,attname); % get missing value 
+
+attname = netcdf.inqAttName(nc1,ID_depth1,4); % get attribute scale factor
+
+% Get value of attribute.
+scaleval = netcdf.getAtt(nc1,ID_depth1,attname); % get scale factor 
+
+attname = netcdf.inqAttName(nc1,ID_depth1,5); % get attribute scale factor
+
+% Get value of attribute.
+addoffset = netcdf.getAtt(nc1,ID_depth1,attname); % get scale factor 
+
+% Select data based on a user defined frequency (in this case every 20th point) 
+% out of the entire record
+% 
 k1=0;
- for i=1:20:length(lat1)
-     k1=k1+1;
+for i=1:intU:length(lat1)
+      k1=k1+1;
+      lat(k1)=lat1(i);
+end;      
+k1=0;
+for i=1:intU:length(lat1)
      k2=0;
-     for j=1:20:length(lon1)
-    k2=k2+1;
-    depth(k2,k1)=depth1(j,i);
-end;
+      k1=k1+1;
+     for j=1:intU:length(lon1)
+         k2=k2+1;
+        lon(k2)=lon1(j); 
+       if (depth1(j,i) ~= missval)    
+       depth(k2,k1)=depth1(j,i)*scaleval+addoffset;
+       else
+       depth(k2,k1)=0;    
+       end
+     end;
  end;
- 
-netcdf.close(nc1);
+ netcdf.close(nc1);
